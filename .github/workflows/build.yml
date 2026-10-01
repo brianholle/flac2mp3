@@ -1,0 +1,77 @@
+# Builds the portable app for Windows, macOS, and Linux on every push.
+# Push a tag like v1.0.0 to also publish a GitHub Release with the
+# ready-to-download apps attached.
+name: Build apps
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            asset_name: FLAC-to-MP3-Windows.zip
+          - os: macos-latest
+            asset_name: FLAC-to-MP3-macOS.zip
+          - os: ubuntu-latest
+            asset_name: FLAC-to-MP3-Linux.tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build with PyInstaller
+        run: python build.py
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/FLAC to MP3.exe" -DestinationPath "${{ matrix.asset_name }}"
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd dist && zip -r -y "../${{ matrix.asset_name }}" "FLAC to MP3.app"
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd dist && tar -czf "../${{ matrix.asset_name }}" "FLAC to MP3"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
