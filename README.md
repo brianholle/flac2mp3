@@ -1,5 +1,7 @@
 # FLAC to MP3 Converter
 
+<img width="661" height="800" alt="image" src="https://github.com/user-attachments/assets/c9b3ee08-3c54-4bad-98c6-98d187f53454" />
+
 A super-simple app that turns downloaded concert/album files into MP3s.
 Made for people who don't want to learn computers — just double-click and go.
 
