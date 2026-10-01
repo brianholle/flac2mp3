@@ -323,10 +323,13 @@ class App(tk.Tk):
         def cb(kind, done, total, label):
             self._queue.put(("progress", kind, done, total, label))
 
+        def log(text):
+            self._queue.put(("log", text))
+
         try:
             summary = converter.run_album(
                 folder, ffmpeg=ffmpeg, progress_cb=cb,
-                delete_zips=self.delete_zips.get())
+                delete_zips=self.delete_zips.get(), log=log)
         except Exception as e:  # never crash on the user
             self._queue.put(("error", f"Something went wrong: {e}"))
             return
@@ -356,6 +359,8 @@ class App(tk.Tk):
                 self._draw_bar(0.20 + 0.80 * done / max(total, 1))
         elif kind == "done":
             self._finish(msg[1])
+        elif kind == "log":
+            self._log(msg[1])
         elif kind == "error":
             self._working = False
             self.convert_btn.config(state="normal",
@@ -379,13 +384,16 @@ class App(tk.Tk):
         zips = summary.get("zips_deleted", 0)
         zip_note = (f"\nCleaned up {zips} zip file(s), too."
                     if zips else "")
-        self._log(f"Done! {n} songs ready in:\n{out}{zip_note}")
+        extras = summary.get("extras_copied", 0)
+        extra_note = (f" Plus {extras} other file(s) from the zips."
+                      if extras else "")
+        self._log(f"Done! {n} songs ready in:\n{out}{zip_note}{extra_note}")
         self.status_text.set(f"■ Done! Your mixtape is ready: {n} songs.")
         answer = messagebox.askyesno(
             "Mixtape complete!",
             f"Your mixtape is done! {n} songs, sitting right in your album "
             f"folder on the USB stick — no subfolders, ready for the car."
-            f"{zip_note}\n\n"
+            f"{extra_note}{zip_note}\n\n"
             f"Folder:\n{out}\n\nOpen the folder now?")
         if answer:
             self._open_folder(out)
